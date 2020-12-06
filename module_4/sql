@@ -221,3 +221,181 @@ WHERE f.departure_airport='AAQ'
 GROUP BY a.model
 ORDER BY count(seat_no) DESC
 LIMIT 1
+
+
+
+Код для задания:
+1. Расширенный датасет
+
+WITH flight_ids AS
+  (SELECT DISTINCT f.flight_id
+   FROM dst_project.flights f
+   WHERE f.departure_airport in
+       (SELECT airport_code
+        FROM
+          (SELECT DISTINCT a.airport_code
+           FROM dst_project.airports a
+           WHERE a.city = 'Anapa') AS airport_codes)
+     AND (date_trunc('month', f.scheduled_departure) in ('2017-01-01',
+                                                         '2017-02-01',
+                                                         '2017-12-01'))
+     AND f.status !='Cancelled')
+SELECT f.flight_id,
+       f.flight_no,
+       'Anapa' departure_city,
+               ap.city arrival_city,
+               to_char(f.scheduled_arrival - f.scheduled_departure, 'HH24:MI') scheduled_flight_duration,
+               to_char(f.actual_arrival - f.actual_departure, 'HH24:MI') actual_flight_duration,
+               ac.model aircraft_model,
+               ap.longitude longitude_arrival_airport,
+               ap.latitude latitude_arrival_airport,
+               '37.35' longitude_departure_airport,
+               '45' latitude_departure_airport,
+               ac.economy_seats,
+               ec.quantity purchased_seats_economy,
+               ac.business_seats,
+               bus.quantity purchased_seats_business,
+               (ac.economy_seats + ac.business_seats) all_seats,
+               (ec.quantity + bus.quantity) seats_purchased_total,
+               ec.amount revenue_economy_tickets,
+               bus.amount revenue_business_tickets,
+               (ec.amount + bus.amount) total_revenue_tickets
+FROM dst_project.flights f
+JOIN dst_project.airports ap ON ap.airport_code = f.arrival_airport
+JOIN
+  (SELECT a.*,
+          count(DISTINCT s1.seat_no) economy_seats,
+          count(DISTINCT s2.seat_no) business_seats
+   FROM dst_project.aircrafts a
+   LEFT JOIN dst_project.seats s1 ON s1.aircraft_code = a.aircraft_code
+   AND s1.fare_conditions = 'Economy'
+   LEFT JOIN dst_project.seats s2 ON s2.aircraft_code = a.aircraft_code
+   AND s2.fare_conditions = 'Business'
+   GROUP BY a.aircraft_code,
+            a.model,
+            a.range) ac ON ac.aircraft_code = f.aircraft_code
+LEFT JOIN
+  (SELECT t.flight_id,
+          sum(t.amount) amount,
+          count(t.amount) quantity
+   FROM dst_project.ticket_flights t
+   WHERE t.flight_id in
+       (SELECT flight_id
+        FROM flight_ids)
+     AND t.fare_conditions = 'Economy'
+   GROUP BY t.flight_id) AS ec ON ec.flight_id = f.flight_id
+LEFT JOIN
+  (SELECT t.flight_id,
+          sum(t.amount) amount,
+          count(t.amount) quantity
+   FROM dst_project.ticket_flights t
+   WHERE t.flight_id in
+       (SELECT flight_id
+        FROM flight_ids)
+     AND t.fare_conditions = 'Business'
+   GROUP BY t.flight_id) AS bus ON bus.flight_id = f.flight_id
+WHERE f.flight_id in
+    (SELECT flight_id
+     FROM flight_ids)
+     
+     
+2. Сгруппированный датасет
+
+SELECT count(fin_tabl.flight_id),
+       fin_tabl.flight_no,
+       fin_tabl.departure_city,
+       fin_tabl.arrival_city,
+       fin_tabl.scheduled_flight_duration,
+       fin_tabl.aircraft_model,
+       fin_tabl.longitude_arrival_airport,
+       fin_tabl.latitude_arrival_airport,
+       fin_tabl.longitude_departure_airport,
+       fin_tabl.latitude_departure_airport,
+       sum(fin_tabl.economy_seats) sum_all_economy_seats,
+       sum(fin_tabl.purchased_seats_economy) sum_purchased_economy_seats,
+       sum(fin_tabl.business_seats) sum_all_business_seats,
+       sum(fin_tabl.purchased_seats_business) sum_purchased_business_seats,
+       sum(fin_tabl.all_seats) sum_all_seats,
+       sum(fin_tabl.seats_purchased_total) sum_all_purchased_seats,
+       sum(fin_tabl.revenue_economy_tickets) sum_revenue_economy_tickets,
+       sum(fin_tabl.revenue_business_tickets) sum_revenue_business_tickets,
+       sum(fin_tabl.total_revenue_tickets) sum_total_revenue_tickets
+FROM
+  (WITH flight_ids AS
+     (SELECT DISTINCT f.flight_id
+      FROM dst_project.flights f
+      WHERE f.departure_airport in
+          (SELECT airport_code
+           FROM
+             (SELECT DISTINCT a.airport_code
+              FROM dst_project.airports a
+              WHERE a.city = 'Anapa') AS airport_codes)
+        AND (date_trunc('month', f.scheduled_departure) in ('2017-01-01',
+                                                            '2017-02-01',
+                                                            '2017-12-01'))
+        AND f.status !='Cancelled') SELECT f.flight_id,
+                                           f.flight_no,
+                                           'Anapa' departure_city,
+                                            ap.city arrival_city,
+                                            to_char(f.scheduled_arrival - f.scheduled_departure, 'HH24:MI') scheduled_flight_duration,
+                                            to_char(f.actual_arrival - f.actual_departure, 'HH24:MI') actual_flight_duration,
+                                            ac.model aircraft_model,
+                                            ap.longitude longitude_arrival_airport,
+                                            ap.latitude latitude_arrival_airport,
+                                            '37.35' longitude_departure_airport,
+                                            '45' latitude_departure_airport,
+                                            ac.economy_seats,
+                                            ec.quantity purchased_seats_economy,
+                                            ac.business_seats,
+                                            bus.quantity purchased_seats_business,
+                                            (ac.economy_seats + ac.business_seats) all_seats,
+                                            (ec.quantity + bus.quantity) seats_purchased_total,
+                                            ec.amount revenue_economy_tickets,
+                                            bus.amount revenue_business_tickets,
+                                            (ec.amount + bus.amount) total_revenue_tickets
+   FROM dst_project.flights f
+   JOIN dst_project.airports ap ON ap.airport_code = f.arrival_airport
+   JOIN
+     (SELECT a.*,
+             count(DISTINCT s1.seat_no) economy_seats,
+             count(DISTINCT s2.seat_no) business_seats
+      FROM dst_project.aircrafts a
+      LEFT JOIN dst_project.seats s1 ON s1.aircraft_code = a.aircraft_code
+      AND s1.fare_conditions = 'Economy'
+      LEFT JOIN dst_project.seats s2 ON s2.aircraft_code = a.aircraft_code
+      AND s2.fare_conditions = 'Business'
+      GROUP BY a.aircraft_code,
+               a.model,
+               a.range) ac ON ac.aircraft_code = f.aircraft_code
+   LEFT JOIN
+     (SELECT t.flight_id,
+             sum(t.amount) amount,
+             count(t.amount) quantity
+      FROM dst_project.ticket_flights t
+      WHERE t.flight_id in
+          (SELECT flight_id
+           FROM flight_ids)
+        AND t.fare_conditions = 'Economy'
+      GROUP BY t.flight_id) AS ec ON ec.flight_id = f.flight_id
+   LEFT JOIN
+     (SELECT t.flight_id,
+             sum(t.amount) amount,
+             count(t.amount) quantity
+      FROM dst_project.ticket_flights t
+      WHERE t.flight_id in
+          (SELECT flight_id
+           FROM flight_ids)
+        AND t.fare_conditions = 'Business'
+      GROUP BY t.flight_id) AS bus ON bus.flight_id = f.flight_id
+   WHERE f.flight_id in
+       (SELECT flight_id
+        FROM flight_ids)) AS fin_tabl
+GROUP BY fin_tabl.flight_no,
+         fin_tabl.departure_city,
+         fin_tabl.arrival_city,
+         fin_tabl.scheduled_flight_duration,
+         fin_tabl.aircraft_model,
+         fin_tabl.longitude_arrival_airport,
+         fin_tabl.latitude_arrival_airport,
+         fin_tabl.longitude_departure_airport,
+         fin_tabl.latitude_departure_airport
