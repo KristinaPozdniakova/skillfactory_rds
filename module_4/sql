@@ -301,7 +301,7 @@ WHERE f.flight_id in
      
 2. Сгруппированный датасет
 
-SELECT count(fin_tabl.flight_id),
+SELECT count(fin_tabl.flight_id) count_flight,
        fin_tabl.flight_no,
        fin_tabl.departure_city,
        fin_tabl.arrival_city,
