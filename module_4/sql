@@ -399,3 +399,24 @@ GROUP BY fin_tabl.flight_no,
          fin_tabl.latitude_arrival_airport,
          fin_tabl.longitude_departure_airport,
          fin_tabl.latitude_departure_airport
+
+
+
+Код на python, с помощью которого можно рассчитать расстояние между городом отправления и прибытия. Код подойдет как для сгруппированного, 
+так и для расширенного датасета. В примере используется сгруппированный.
+
+
+pip install geopy
+import  pandas as pd 
+from geopy.distance import geodesic
+
+df = pd.read_csv('grouped-dataset.csv')
+
+
+def distance_calc (row):
+    start = (row['latitude_departure_airport'], row['longitude_departure_airport'])
+    stop = (row['latitude_arrival_airport'], row['longitude_arrival_airport'])
+    return geodesic(start, stop).kilometers
+    
+    
+df['distance'] = df.apply (lambda row: distance_calc (row),axis=1)
